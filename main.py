@@ -37,6 +37,8 @@ from python_files.Generator import Generator
 from python_files.Discriminator import Discriminator
 from python_files.train import setup_train, train
 
+import sys
+
 # Seed control, for better reproducibility 
 # NOTE: this does not gurantee results are always the same
 seed = 22
@@ -44,9 +46,22 @@ random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
 
-#Global parameters 
-iterations = 5
-latent_dim = 100
+#Global parameters
+
+print(sys.argv)
+
+if len(sys.argv) not in (3, 5):
+    exit()
+
+iterations = int(sys.argv[1])
+latent_dim = int(sys.argv[2])
+
+setback_frequency = None
+setback_percentage = None
+if len(sys.argv) == 5:
+    setback_frequency = int(sys.argv[3])
+    setback_percentage = float(sys.argv[4])
+    
 dataroot = "./data/celeba_smaller/"
 
 if torch.cuda.is_available():
@@ -221,7 +236,9 @@ train(generator=generator, gan_optimizer=gan_optimizer,
       iterations=iterations, 
       dataloader=dataloader, 
       latent_dim=latent_dim,
-      real_image_numpy=real_image_numpy
+      real_image_numpy=real_image_numpy,
+      setback_frequency=setback_frequency,
+      setback_percentage=setback_percentage
 )
 
 

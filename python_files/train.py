@@ -33,18 +33,40 @@ from torchvision.models.inception import inception_v3
 import numpy as np
 from scipy.stats import entropy
 
-
-plot_num_examples = 200
-img_list= []
-IS_scores = []
-total_steps = 0
-device = 'cuda:0'
-fixed_random_latent_vectors = torch.randn(1, 100, device=device)
-device = torch.device("cuda:0")
-cudnn.benchmark=False
-Tensor = torch.cuda.FloatTensor
-adversarial_loss = torch.nn.MSELoss() 
-clip_value = 1.0
+class Classifier(nn.Module):
+    def __init__(self, n_classes):
+        super(Classifier, self).__init__()
+        self.conv_blocks = nn.Sequential(
+            nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding='same'),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding='same'),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=(2,2), stride=2),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding='same'),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding='same'),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=(2,2), stride=2),
+            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding='same'),
+            nn.MaxPool2d(kernel_size=(2,2), stride=2),
+            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding='same'),
+        )
+        self.fully_connected = nn.Sequential(
+            nn.Linear(128*8*8, 128*8), nn.ReLU(),
+            nn.Linear(128*8, 128), nn.ReLU(),
+            nn.Linear(128, 64), nn.ReLU(),
+            nn.Linear(64, n_classes),
+        )
+        
+        self.classify =  nn.Softmax(dim=1)
+        
+        
+    def forward(self, img):
+        out = self.conv_blocks(img)
+        out = torch.flatten(out, start_dim=1)
+        out = self.fully_connected(out)
+        out = self.classify(out)
+        return out
 
 def setup_train(latent_dim, device_in):
     global fixed_random_latent_vectors
@@ -129,42 +151,6 @@ def inception_score(imgs, cuda=True, batch_size=32, resize=False, splits=1):
 
     return np.mean(split_scores), np.std(split_scores)
 
-
-class Classifier(nn.Module):
-    def __init__(self, n_classes):
-        super(Classifier, self).__init__()
-        self.conv_blocks = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding='same'),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding='same'),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2,2), stride=2),
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding='same'),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding='same'),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(2,2), stride=2),
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding='same'),
-            nn.MaxPool2d(kernel_size=(2,2), stride=2),
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding='same'),
-        )
-        self.fully_connected = nn.Sequential(
-            nn.Linear(128*8*8, 128*8), nn.ReLU(),
-            nn.Linear(128*8, 128), nn.ReLU(),
-            nn.Linear(128, 64), nn.ReLU(),
-            nn.Linear(64, n_classes),
-        )
-        
-        self.classify =  nn.Softmax(dim=1)
-        
-        
-    def forward(self, img):
-        out = self.conv_blocks(img)
-        out = torch.flatten(out, start_dim=1)
-        out = self.fully_connected(out)
-        out = self.classify(out)
-        return out
-
 def train(generator, gan_optimizer,
           discriminator, discriminator_optimizer,
           iterations, dataloader, 
@@ -176,7 +162,7 @@ def train(generator, gan_optimizer,
           log_every=50,
           save_off_every=10):
     
-    setback_name = ""
+    setback_name = "ls"
     if setback_frequency is not None and setback_percentage is not None:
         setback_amount = int(setback_percentage*setback_frequency)
         setback_name = f"setback_{setback_frequency}_{setback_percentage}"
@@ -205,6 +191,7 @@ def train(generator, gan_optimizer,
             # Zero out any previous calculated gradients
             gan_optimizer.zero_grad()
 
+            real_images = Variable(imgs.type(Tensor)).to(device)
             # Sample random points in the latent space
             random_latent_vectors = Variable(Tensor(np.random.normal(0, 1, (imgs.shape[0], latent_dim)))).to(device)
             # Decode them to fake images, through the generator
@@ -217,8 +204,17 @@ def train(generator, gan_optimizer,
 
             # Get MSE Loss function
             # want generator output to generate images that are "close" to all "ones" 
-            g_loss = adversarial_loss(discriminator(generated_images), misleading_targets)
-
+            g_loss = adversarial_loss(discriminator(generated_images), misleading_targets) / 2
+            
+            #fake_features = torch.mean(discriminator.get_feature_layer_1(generated_images), dim=0)
+            #real_features = torch.mean(discriminator.get_feature_layer_1(real_images), dim=0)
+            #g_loss += torch.mean(torch.square(fake_features-real_features)) / 4
+            
+            
+            fake_features = torch.mean(discriminator.get_feature_layer_2(generated_images), dim=0)
+            real_features = torch.mean(discriminator.get_feature_layer_2(real_images), dim=0)
+            g_loss += torch.mean(torch.square(fake_features-real_features)) / 2
+            
             # now back propagate to get derivatives
             g_loss.backward()
 
@@ -233,7 +229,6 @@ def train(generator, gan_optimizer,
             discriminator_optimizer.zero_grad()
 
             # Combine real images with some generator images
-            real_images = Variable(imgs.type(Tensor)).to(device)
             combined_images = torch.cat([real_images, generated_images.detach()])
             # in the above line, we "detach" the generated images from the generator
             # this is to ensure that no needless gradients are calculated 
@@ -291,3 +286,22 @@ def train(generator, gan_optimizer,
             torch.save({'state_dict': generator.state_dict()}, f'models/gan_models/{setback_name}_gen_celeb.pth')
             torch.save({'state_dict': discriminator.state_dict()}, f'models/gan_models/{setback_name}_dis_celeb.pth')
     return (ims)
+
+
+    
+plot_num_examples = 200
+img_list= []
+IS_scores = []
+total_steps = 0
+device = 'cuda:0'
+fixed_random_latent_vectors = torch.randn(1, 100, device=device)
+device = torch.device("cuda:0")
+cudnn.benchmark=False
+Tensor = torch.cuda.FloatTensor
+adversarial_loss = torch.nn.MSELoss() 
+clip_value = 1.0
+
+checkpoint = torch.load( 'models/gan_models/face_classifier.pth')
+model1 = Classifier(8).to(device)
+model1.load_state_dict(checkpoint['state_dict'])
+    
