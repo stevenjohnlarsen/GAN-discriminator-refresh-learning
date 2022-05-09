@@ -2,7 +2,17 @@
 # coding: utf-8
 
 # In[1]:
+"""
+main.py will take the parameters below and run a training session.
+models will be saved to models/gan_models
 
+Main program takes the following parameters
+(1) # of epochs 
+(2) # of latent dim (100)
+(3) # phi: percentage weight for feature matching
+(4) setback freuency (needs both 4 and 5)
+(5) setback percentage (needs both 4 and 5)
+"""
 
 import numpy as np
 import random

@@ -1,3 +1,9 @@
+"""
+Generator:
+a nn.Module clas that it the generator for a GAN
+This one taked notated for 64x64 sized images.
+"""
+
 import torch.nn as nn
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn

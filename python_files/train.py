@@ -1,3 +1,10 @@
+"""
+This file contains the train function that is called by main.py
+setup_train must be called before train
+Classifer, is used for IS and has been pre trained in models/gan_models/face_classifier.pth.
+Any model that can classify the dataset can be used here.
+"""
+
 import numpy as np
 import random
 import torch
@@ -160,7 +167,8 @@ def train(generator, gan_optimizer,
           setback_percentage=None,
           begin_step=None,
           log_every=50,
-          save_off_every=10):
+          save_off_every=10, 
+          phi=1):
     
     setback_name = "ls"
     if setback_frequency is not None and setback_percentage is not None:
@@ -204,16 +212,16 @@ def train(generator, gan_optimizer,
 
             # Get MSE Loss function
             # want generator output to generate images that are "close" to all "ones" 
-            g_loss = adversarial_loss(discriminator(generated_images), misleading_targets) / 2
+            g_loss = adversarial_loss(discriminator(generated_images), misleading_targets) * (phi)
             
             #fake_features = torch.mean(discriminator.get_feature_layer_1(generated_images), dim=0)
             #real_features = torch.mean(discriminator.get_feature_layer_1(real_images), dim=0)
             #g_loss += torch.mean(torch.square(fake_features-real_features)) / 4
             
-            
-            fake_features = torch.mean(discriminator.get_feature_layer_2(generated_images), dim=0)
-            real_features = torch.mean(discriminator.get_feature_layer_2(real_images), dim=0)
-            g_loss += torch.mean(torch.square(fake_features-real_features)) / 2
+            if phi != 1: 
+                fake_features = torch.mean(discriminator.get_feature_layer_2(generated_images), dim=0)
+                real_features = torch.mean(discriminator.get_feature_layer_2(real_images), dim=0)
+                g_loss += torch.mean(torch.square(fake_features-real_features)) * (1 - phi)
             
             # now back propagate to get derivatives
             g_loss.backward()
@@ -275,7 +283,11 @@ def train(generator, gan_optimizer,
                 fake_output = generator(fixed_random_latent_vectors).detach().cpu()
             img_list.append(torchvision.utils.make_grid(fake_output[0:25], padding=2, normalize=True, nrow=5))
             
-            IS_scores.append(inception_score(fake_output.to(device))[0])
+            IS_scores.append(
+                [inception_score(fake_output.to(device))[0],
+                g_loss.item(),
+                d_loss.item()]
+            )
             np.save(f'models/gan_models/{setback_name}_is_scores_celeb.npy', IS_scores)
 
             # in addition, save off a checkpoint of the current models and images
@@ -294,7 +306,7 @@ img_list= []
 IS_scores = []
 total_steps = 0
 device = 'cuda:0'
-fixed_random_latent_vectors = torch.randn(1, 100, device=device)
+fixed_random_latent_vectors = torch.randn(1, 1000, device=device)
 device = torch.device("cuda:0")
 cudnn.benchmark=False
 Tensor = torch.cuda.FloatTensor
