@@ -47,20 +47,29 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 
 #Global parameters
+""""
+Main program takes the following parameters
+(1) # of epochs 
+(2) # of latent dim (100)
+(3) # phi: percentage weight for feature matching
+(4) setback freuency (needs both 4 and 5)
+(5) setback percentage (needs both 4 and 5)
+"""
 
 print(sys.argv)
 
-if len(sys.argv) not in (3, 5):
+if len(sys.argv) not in (4, 6):
     exit()
 
 iterations = int(sys.argv[1])
 latent_dim = int(sys.argv[2])
+phi = float(sys.argv[3])
 
 setback_frequency = None
 setback_percentage = None
-if len(sys.argv) == 5:
-    setback_frequency = int(sys.argv[3])
-    setback_percentage = float(sys.argv[4])
+if len(sys.argv) == 6:
+    setback_frequency = int(sys.argv[4])
+    setback_percentage = float(sys.argv[5])
     
 dataroot = "./data/celeba_smaller/"
 
@@ -98,25 +107,24 @@ def norm_grid(im):
 
 
 
-if True:
-    workers = 32
+workers = 32
 
-    batch_size = 128
+batch_size = 128
 
-    image_size = 64
+image_size = 64
 
-    nc = 3
+nc = 3
 
-    nz = 100
+nz = 100
+print(dataroot)
+dataset = dset.ImageFolder(root=dataroot,
+                           transform=transforms.Compose([
+                               transforms.Resize(image_size),
+                               transforms.CenterCrop(image_size),
+                               transforms.ToTensor(),
+                               transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),]))
 
-    dataset = dset.ImageFolder(root=dataroot,
-                               transform=transforms.Compose([
-                                   transforms.Resize(image_size),
-                                   transforms.CenterCrop(image_size),
-                                   transforms.ToTensor(),
-                                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),]))
-    
-    
+
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
                                          shuffle=True, num_workers=1)
 
@@ -238,7 +246,8 @@ train(generator=generator, gan_optimizer=gan_optimizer,
       latent_dim=latent_dim,
       real_image_numpy=real_image_numpy,
       setback_frequency=setback_frequency,
-      setback_percentage=setback_percentage
+      setback_percentage=setback_percentage,
+      phi=phi
 )
 
 
