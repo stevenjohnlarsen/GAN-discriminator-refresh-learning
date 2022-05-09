@@ -186,10 +186,10 @@ def train(generator, gan_optimizer,
         if setback_frequency is not None and setback_percentage is not None:
             # Check if we need to save off the weights
             if (total_steps+setback_amount) % setback_frequency == 0:
-                torch.save({'state_dict': discriminator.state_dict()}, 'models/gan_models/setback_dis_temp.pth')
+                torch.save({'state_dict': discriminator.state_dict()}, f'models/gan_models/{setback_frequency}_{setback_percentage}_setback_dis_temp.pth')
             # Check if we need to load in the weights
             if total_steps % setback_frequency == 0:
-                checkpoint = torch.load('models/gan_models/setback_dis_temp.pth')
+                checkpoint = torch.load(f'models/gan_models/{setback_frequency}_{setback_percentage}_setback_dis_temp.pth')
                 discriminator.load_state_dict(checkpoint['state_dict'])
 
         for i, (imgs, classes) in enumerate(dataloader):
