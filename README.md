@@ -19,4 +19,14 @@ To run a train of a model do the following:
   * setback_percentage (as a floating point number)
 * setback_frequency and setback_percentage are optional, but either both or none must be used
 
+## Notebooks:
+* CelebAGAN - This is a development notebook. The used GAN networks are in the python_files folder.
+* CIFAR10GAN - This is a development notebook. The used GAN networks are in the python_files folder.
+* Classify CIFAR - This notebook was used to create the weights for the classifer used in inception score
+* ClassifyFaces - This notebook was used to create the weights for the classifer used in inception score
+* GrahhsForPaper-Feature-Matching - This notebook loaded the models saved from training and created figures used in the paper
+* GrahhsForPaper-No-Feature-Matching - This notebook loaded the models saved from training and created figures used in the paper
+* InvestigateCelebaClasses - Used to pick the inception score classes
+* Reduce Celeba size - Created the reduced dataset that was used for training and map the classes for classifying. 
+
 The repository has some notebooks for visulazation and some training, but the majority of training for the paper was done using main.py
