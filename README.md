@@ -29,4 +29,3 @@ To run a train of a model do the following:
 * InvestigateCelebaClasses - Used to pick the inception score classes
 * Reduce Celeba size - Created the reduced dataset that was used for training and map the classes for classifying. 
 
-The repository has some notebooks for visulazation and some training, but the majority of training for the paper was done using main.py
