@@ -166,7 +166,7 @@ def train(generator, gan_optimizer,
           setback_frequency=None,
           setback_percentage=None,
           begin_step=None,
-          log_every=50,
+          log_every=1,
           save_off_every=10, 
           phi=1):
     

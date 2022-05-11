@@ -34,7 +34,7 @@ from torch.autograd import Variable
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from IPython.display import HTML
+#from IPython.display import HTML
 from torchvision.utils import save_image
 
 from PIL import Image
